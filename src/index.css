@@ -1,0 +1,207 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Montserrat:wght@600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply box-border;
+  }
+  
+  body {
+    @apply bg-bricol-gray-light font-inter text-bricol-gray-dark;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-montserrat;
+  }
+}
+
+@layer components {
+  /* Boutons */
+  .btn {
+    @apply px-4 py-2 rounded-lg font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2;
+  }
+
+  .btn-primary {
+    @apply btn bg-bricol-green text-white hover:bg-green-600 focus:ring-bricol-green;
+  }
+
+  .btn-secondary {
+    @apply btn bg-bricol-blue text-white hover:bg-blue-700 focus:ring-bricol-blue;
+  }
+
+  .btn-danger {
+    @apply btn bg-bricol-red text-white hover:bg-red-700 focus:ring-bricol-red;
+  }
+
+  .btn-outline {
+    @apply btn border-2 border-bricol-blue text-bricol-blue hover:bg-bricol-blue hover:text-white;
+  }
+
+  .btn-ghost {
+    @apply btn text-bricol-gray-dark hover:bg-gray-200;
+  }
+
+  /* Cartes */
+  .card {
+    @apply bg-white rounded-lg shadow-sm border border-gray-200 p-4;
+  }
+
+  .card-hover {
+    @apply card transition-shadow duration-200 hover:shadow-md;
+  }
+
+  /* Badges de statut */
+  .badge {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-sm font-medium;
+  }
+
+  .badge-termine {
+    @apply badge bg-green-100 text-green-800;
+  }
+
+  .badge-en-cours {
+    @apply badge bg-orange-100 text-orange-800;
+  }
+
+  .badge-a-faire {
+    @apply badge bg-gray-100 text-gray-800;
+  }
+
+  .badge-en-attente {
+    @apply badge bg-yellow-100 text-yellow-800;
+  }
+
+  .badge-probleme {
+    @apply badge bg-red-100 text-red-800;
+  }
+
+  /* Barres de progression */
+  .progress-bar {
+    @apply w-full h-2 bg-gray-200 rounded-full overflow-hidden;
+  }
+
+  .progress-fill {
+    @apply h-full transition-all duration-500 ease-out rounded-full;
+  }
+
+  .progress-fill-green {
+    @apply progress-fill bg-bricol-green;
+  }
+
+  .progress-fill-orange {
+    @apply progress-fill bg-bricol-orange;
+  }
+
+  .progress-fill-blue {
+    @apply progress-fill bg-bricol-blue;
+  }
+
+  /* Inputs */
+  .input {
+    @apply w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-bricol-blue focus:border-transparent;
+  }
+
+  .label {
+    @apply block text-sm font-medium text-gray-700 mb-1;
+  }
+
+  /* Modal */
+  .modal-overlay {
+    @apply fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4;
+  }
+
+  .modal-content {
+    @apply bg-white rounded-lg shadow-xl max-w-md w-full p-6;
+  }
+
+  /* Navigation mobile */
+  .nav-mobile {
+    @apply fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-40;
+  }
+
+  .nav-item {
+    @apply flex flex-col items-center justify-center py-2 text-xs text-gray-600 hover:text-bricol-blue transition-colors;
+  }
+
+  .nav-item-active {
+    @apply nav-item text-bricol-blue;
+  }
+
+  /* Table responsive */
+  .table-responsive {
+    @apply w-full overflow-x-auto;
+  }
+
+  .table {
+    @apply min-w-full divide-y divide-gray-200;
+  }
+
+  .table-header {
+    @apply bg-gray-50;
+  }
+
+  .table-cell {
+    @apply px-4 py-3 text-sm;
+  }
+
+  /* Animations */
+  @keyframes slideIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-slide-in {
+    animation: slideIn 0.3s ease-out;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  .animate-fade-in {
+    animation: fadeIn 0.2s ease-out;
+  }
+
+  /* Utilitaires personnalisés */
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-bricol-blue to-bricol-green;
+  }
+
+  .glass-effect {
+    @apply bg-white bg-opacity-80 backdrop-blur-sm;
+  }
+}
+
+@layer utilities {
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Mobile safe area */
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .safe-area-top {
+    padding-top: env(safe-area-inset-top);
+  }
+}
