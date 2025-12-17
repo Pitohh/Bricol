@@ -1,71 +1,68 @@
 import express from 'express';
 import db from '../config/database.js';
-import { authenticateToken, checkPermission } from '../middleware/auth.js';
 
 const router = express.Router();
 
-// Get subtasks for a phase
-router.get('/phase/:phaseId', authenticateToken, (req, res) => {
+// Get all subtasks for a phase
+router.get('/phase/:phaseId', (req, res) => {
   const { phaseId } = req.params;
 
   try {
-    const subTasks = db.prepare('SELECT * FROM sub_tasks WHERE phase_id = ? ORDER BY task_order').all(phaseId);
-    res.json(subTasks);
+    const subtasks = db.prepare(`
+      SELECT * FROM sub_tasks 
+      WHERE phase_id = ? 
+      ORDER BY created_at ASC
+    `).all(phaseId);
+
+    res.json(subtasks);
   } catch (error) {
+    console.error('Error getting subtasks:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-// Create subtask (Coordinateur)
-router.post('/', authenticateToken, checkPermission('canCreateSubTasks'), (req, res) => {
+// Create a subtask
+router.post('/', (req, res) => {
   const { phase_id, task_name, description, estimated_cost, start_date } = req.body;
 
   try {
-    const maxOrder = db.prepare('SELECT MAX(task_order) as max FROM sub_tasks WHERE phase_id = ?').get(phase_id);
-    const task_order = (maxOrder.max || 0) + 1;
-
     const result = db.prepare(`
-      INSERT INTO sub_tasks (phase_id, task_name, description, estimated_cost, start_date, task_order, created_by)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).run(phase_id, task_name, description, estimated_cost, start_date, task_order, req.user.id);
+      INSERT INTO sub_tasks (
+        phase_id, task_name, description, estimated_cost, 
+        start_date, progression, status, created_by
+      ) VALUES (?, ?, ?, ?, ?, 0, 'en_cours', ?)
+    `).run(phase_id, task_name, description, estimated_cost, start_date, 1);
 
-    const subTask = db.prepare('SELECT * FROM sub_tasks WHERE id = ?').get(result.lastInsertRowid);
-
-    const io = req.app.get('io');
-    io.emit('subtask-created', subTask);
-
-    res.json(subTask);
+    const subtask = db.prepare('SELECT * FROM sub_tasks WHERE id = ?').get(result.lastInsertRowid);
+    res.json(subtask);
   } catch (error) {
+    console.error('Error creating subtask:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
 // Update subtask progression
-router.put('/:id/progression', authenticateToken, (req, res) => {
+router.put('/:id/progression', (req, res) => {
   const { id } = req.params;
   const { progression } = req.body;
 
   try {
-    let status = 'a_faire';
-    if (progression > 0 && progression < 100) status = 'en_cours';
-    if (progression === 100) status = 'termine';
+    db.prepare(`
+      UPDATE sub_tasks 
+      SET progression = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).run(progression, id);
 
-    db.prepare('UPDATE sub_tasks SET progression = ?, status = ? WHERE id = ?')
-      .run(progression, status, id);
-
-    const subTask = db.prepare('SELECT * FROM sub_tasks WHERE id = ?').get(id);
-
-    const io = req.app.get('io');
-    io.emit('subtask-updated', subTask);
-
-    res.json(subTask);
+    const subtask = db.prepare('SELECT * FROM sub_tasks WHERE id = ?').get(id);
+    res.json(subtask);
   } catch (error) {
+    console.error('Error updating progression:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-// Validate subtask (Coordinateur)
-router.post('/:id/validate', authenticateToken, checkPermission('canValidateTechnically'), (req, res) => {
+// Validate subtask (Tanguy)
+router.post('/:id/validate', (req, res) => {
   const { id } = req.params;
 
   try {
@@ -73,18 +70,28 @@ router.post('/:id/validate', authenticateToken, checkPermission('canValidateTech
       UPDATE sub_tasks 
       SET status = 'termine',
           progression = 100,
-          validated_by = ?,
+          validated_by = 2,
           validated_at = CURRENT_TIMESTAMP
       WHERE id = ?
-    `).run(req.user.id, id);
+    `).run(id);
 
-    const subTask = db.prepare('SELECT * FROM sub_tasks WHERE id = ?').get(id);
-
-    const io = req.app.get('io');
-    io.emit('subtask-validated', subTask);
-
-    res.json(subTask);
+    const subtask = db.prepare('SELECT * FROM sub_tasks WHERE id = ?').get(id);
+    res.json(subtask);
   } catch (error) {
+    console.error('Error validating subtask:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Delete subtask
+router.delete('/:id', (req, res) => {
+  const { id } = req.params;
+
+  try {
+    db.prepare('DELETE FROM sub_tasks WHERE id = ?').run(id);
+    res.json({ success: true, message: 'Sous-tâche supprimée' });
+  } catch (error) {
+    console.error('Error deleting subtask:', error);
     res.status(500).json({ error: error.message });
   }
 });

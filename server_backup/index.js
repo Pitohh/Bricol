@@ -8,7 +8,6 @@ import { fileURLToPath } from 'url';
 import authRoutes from './routes/auth.js';
 import projectRoutes from './routes/project.js';
 import phasesRoutes from './routes/phases.js';
-import subTasksRoutes from './routes/subTasks.js';
 
 // Import database
 import db from './config/database.js';
@@ -40,7 +39,6 @@ app.use((req, res, next) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/project', projectRoutes);
 app.use('/api/phases', phasesRoutes);
-app.use('/api/subtasks', subTasksRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

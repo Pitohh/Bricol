@@ -1,188 +1,133 @@
+import { useState } from 'react';
 import { useTasks } from '../../contexts/TaskContext';
-import { LoadingSpinner, StatusBadge } from '../UI';
-import { DollarSign, TrendingUp, TrendingDown, AlertCircle } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
+import { phasesApi } from '../../utils/api';
+import { DollarSign, Save } from 'lucide-react';
 
 export function CostsView() {
-  const { tasks, isLoading } = useTasks();
+  const { tasks, refreshTasks } = useTasks();
+  const { user } = useAuth();
+  const [actualCosts, setActualCosts] = useState({});
+  const [isSaving, setIsSaving] = useState(false);
 
-  if (isLoading) {
-    return <LoadingSpinner message="Chargement des coûts..." />;
-  }
+  const formatCurrency = (value) => `${(value / 1000000).toFixed(2)}M XOF`;
 
-  const stats = calculateCostStats(tasks);
+  const totalEstimated = tasks.reduce((sum, t) => sum + (t.estimated_cost || 0), 0);
+  const totalActual = tasks.reduce((sum, t) => sum + (t.actual_cost || 0), 0);
+  const totalRemaining = totalEstimated - totalActual;
+
+  const handleUpdateActualCost = async (phaseId, cost) => {
+    setIsSaving(true);
+    try {
+      await phasesApi.updateActualCost(phaseId, cost);
+      await refreshTasks();
+      alert('✅ Coût réel mis à jour !');
+    } catch (error) {
+      alert('❌ Erreur : ' + error.message);
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   return (
-    <div className="container mx-auto px-4 py-6 pb-24 md:pb-6">
-      {/* En-tête */}
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold font-montserrat text-gray-900 mb-2">
-          Gestion des Coûts
-        </h2>
-        <p className="text-gray-600">Suivi budgétaire détaillé du projet</p>
-      </div>
+    <div className="container mx-auto px-4 py-6">
+      <h2 className="text-2xl font-bold mb-6">💵 Suivi des Coûts</h2>
 
-      {/* Cartes de résumé */}
+      {/* Cartes récapitulatives */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <div className="card border-l-4 border-blue-500">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 mb-1">Budget Total</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {formatCurrency(stats.budgetTotal)}
-              </p>
-            </div>
-            <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-              <DollarSign className="w-6 h-6 text-blue-600" />
-            </div>
-          </div>
+          <p className="text-sm text-gray-600 mb-1">Budget Total</p>
+          <p className="text-2xl font-bold text-blue-600">{formatCurrency(totalEstimated)}</p>
         </div>
-
-        <div className="card border-l-4 border-green-500">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 mb-1">Dépensé</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {formatCurrency(stats.budgetUtilise)}
-              </p>
-              <p className="text-xs text-green-600 mt-1">
-                {stats.percentUtilise}% du budget
-              </p>
-            </div>
-            <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-              <TrendingUp className="w-6 h-6 text-green-600" />
-            </div>
-          </div>
-        </div>
-
         <div className="card border-l-4 border-orange-500">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 mb-1">Restant</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {formatCurrency(stats.budgetRestant)}
-              </p>
-              <p className="text-xs text-orange-600 mt-1">
-                {stats.percentRestant}% disponible
-              </p>
-            </div>
-            <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
-              <TrendingDown className="w-6 h-6 text-orange-600" />
-            </div>
-          </div>
+          <p className="text-sm text-gray-600 mb-1">Dépensé</p>
+          <p className="text-2xl font-bold text-orange-600">{formatCurrency(totalActual)}</p>
+          <p className="text-xs text-gray-500 mt-1">
+            {((totalActual / totalEstimated) * 100).toFixed(1)}% du budget
+          </p>
+        </div>
+        <div className="card border-l-4 border-green-500">
+          <p className="text-sm text-gray-600 mb-1">Restant</p>
+          <p className="text-2xl font-bold text-green-600">{formatCurrency(totalRemaining)}</p>
+          <p className="text-xs text-gray-500 mt-1">
+            {((totalRemaining / totalEstimated) * 100).toFixed(1)}% disponible
+          </p>
         </div>
       </div>
-
-      {/* Alerte si dépassement */}
-      {stats.hasOverbudget && (
-        <div className="card mb-6 border-l-4 border-red-500 bg-red-50">
-          <div className="flex items-start space-x-3">
-            <AlertCircle className="w-6 h-6 text-red-600 flex-shrink-0 mt-0.5" />
-            <div>
-              <h3 className="font-semibold text-red-900 mb-1">Attention</h3>
-              <p className="text-sm text-red-700">
-                Certaines phases présentent des dépassements budgétaires.
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Tableau détaillé */}
       <div className="card">
-        <h3 className="text-lg font-semibold font-montserrat mb-4">
-          Détail par Phase
-        </h3>
-
+        <h3 className="text-lg font-bold mb-4">Détail par Phase</h3>
         <div className="overflow-x-auto">
-          <table className="table">
-            <thead className="table-header">
+          <table className="w-full">
+            <thead className="bg-gray-50">
               <tr>
-                <th className="table-cell text-left font-semibold text-gray-700">Phase</th>
-                <th className="table-cell text-right font-semibold text-gray-700">Budget Estimé</th>
-                <th className="table-cell text-right font-semibold text-gray-700">
-                  Coût Réel
-                </th>
-                <th className="table-cell text-center font-semibold text-gray-700">Écart</th>
-                <th className="table-cell text-center font-semibold text-gray-700">Statut</th>
+                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Phase</th>
+                <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">Budget Prévu</th>
+                <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">Coût Réel</th>
+                <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">Écart</th>
+                <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
               {tasks.map(task => {
-                const actualCost = task.actualCost || 0;
-                const estimatedCost = task.estimatedCost;
-                const diff = actualCost - estimatedCost;
-                const diffPercent =
-                  actualCost > 0 ? ((diff / estimatedCost) * 100).toFixed(1) : 0;
+                const variance = (task.actual_cost || 0) - (task.estimated_cost || 0);
+                const isOverBudget = variance > 0;
 
                 return (
                   <tr key={task.id} className="hover:bg-gray-50">
-                    <td className="table-cell">
-                      <div>
-                        <p className="font-medium text-gray-900">{task.phase}</p>
-                        <p className="text-xs text-gray-500 mt-1 hidden md:block">
-                          {task.assignedTo.join(', ')}
-                        </p>
-                      </div>
+                    <td className="px-4 py-3">
+                      <p className="font-medium text-gray-900">{task.phase_name}</p>
+                      <p className="text-xs text-gray-500">{task.progression}% complété</p>
                     </td>
-                    <td className="table-cell text-right font-medium text-gray-900">
-                      {formatCurrency(estimatedCost)}
+                    <td className="px-4 py-3 text-right text-sm">
+                      {formatCurrency(task.estimated_cost || 0)}
                     </td>
-                    <td className="table-cell text-right font-medium">
-                      {actualCost > 0 ? (
-                        <span className={actualCost > estimatedCost ? 'text-red-600' : 'text-green-600'}>
-                          {formatCurrency(actualCost)}
-                        </span>
+                    <td className="px-4 py-3 text-right">
+                      {user?.permissions?.canEditBudget ? (
+                        <div className="flex items-center justify-end gap-2">
+                          <input
+                            type="number"
+                            defaultValue={task.actual_cost || 0}
+                            onChange={(e) => setActualCosts({ ...actualCosts, [task.id]: Number(e.target.value) })}
+                            className="input w-32 text-right text-sm"
+                            step="10000"
+                          />
+                          <button
+                            onClick={() => handleUpdateActualCost(task.id, actualCosts[task.id] || task.actual_cost || 0)}
+                            disabled={isSaving}
+                            className="btn-primary px-2 py-1 text-xs"
+                          >
+                            <Save className="w-3 h-3" />
+                          </button>
+                        </div>
                       ) : (
-                        <span className="text-gray-400">-</span>
+                        <span className="text-sm">{formatCurrency(task.actual_cost || 0)}</span>
                       )}
                     </td>
-                    <td className="table-cell text-center">
-                      {actualCost > 0 ? (
-                        <span
-                          className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                            diff > 0
-                              ? 'bg-red-100 text-red-800'
-                              : diff < 0
-                              ? 'bg-green-100 text-green-800'
-                              : 'bg-gray-100 text-gray-800'
-                          }`}
-                        >
-                          {diff > 0 ? '+' : ''}
-                          {diffPercent}%
-                        </span>
-                      ) : (
-                        <span className="text-gray-400">-</span>
-                      )}
+                    <td className={`px-4 py-3 text-right text-sm font-semibold ${isOverBudget ? 'text-red-600' : 'text-green-600'}`}>
+                      {isOverBudget ? '+' : ''}{formatCurrency(variance)}
                     </td>
-                    <td className="table-cell text-center">
-                      <StatusBadge status={task.statut} />
+                    <td className="px-4 py-3 text-center">
+                      {isOverBudget && (
+                        <span className="inline-flex items-center px-2 py-1 bg-red-100 text-red-700 text-xs rounded-full">
+                          ⚠️ Dépassement
+                        </span>
+                      )}
                     </td>
                   </tr>
                 );
               })}
             </tbody>
-            <tfoot className="bg-gray-50 font-semibold">
+            <tfoot className="bg-gray-50 font-bold">
               <tr>
-                <td className="table-cell text-gray-900">Total</td>
-                <td className="table-cell text-right text-gray-900">
-                  {formatCurrency(stats.budgetTotal)}
+                <td className="px-4 py-3">TOTAL</td>
+                <td className="px-4 py-3 text-right">{formatCurrency(totalEstimated)}</td>
+                <td className="px-4 py-3 text-right">{formatCurrency(totalActual)}</td>
+                <td className={`px-4 py-3 text-right ${(totalActual - totalEstimated) > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                  {(totalActual - totalEstimated) > 0 ? '+' : ''}{formatCurrency(totalActual - totalEstimated)}
                 </td>
-                <td className="table-cell text-right text-gray-900">
-                  {formatCurrency(stats.budgetUtilise)}
-                </td>
-                <td className="table-cell text-center">
-                  <span
-                    className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                      stats.totalDiff > 0
-                        ? 'bg-red-100 text-red-800'
-                        : 'bg-green-100 text-green-800'
-                    }`}
-                  >
-                    {stats.totalDiff > 0 ? '+' : ''}
-                    {stats.totalDiffPercent}%
-                  </span>
-                </td>
-                <td className="table-cell"></td>
+                <td></td>
               </tr>
             </tfoot>
           </table>
@@ -190,35 +135,4 @@ export function CostsView() {
       </div>
     </div>
   );
-}
-
-function calculateCostStats(tasks) {
-  const budgetTotal = tasks.reduce((sum, task) => sum + task.estimatedCost, 0);
-  const budgetUtilise = tasks.reduce((sum, task) => sum + (task.actualCost || 0), 0);
-  const budgetRestant = budgetTotal - budgetUtilise;
-  const percentUtilise = Math.round((budgetUtilise / budgetTotal) * 100);
-  const percentRestant = 100 - percentUtilise;
-  const hasOverbudget = tasks.some(t => (t.actualCost || 0) > t.estimatedCost);
-  const totalDiff = budgetUtilise - budgetTotal;
-  const totalDiffPercent = ((totalDiff / budgetTotal) * 100).toFixed(1);
-
-  return {
-    budgetTotal,
-    budgetUtilise,
-    budgetRestant,
-    percentUtilise,
-    percentRestant,
-    hasOverbudget,
-    totalDiff,
-    totalDiffPercent
-  };
-}
-
-function formatCurrency(value) {
-  if (value >= 1000000) {
-    return `${(value / 1000000).toFixed(1)}M XOF`;
-  } else if (value >= 1000) {
-    return `${(value / 1000).toFixed(0)}K XOF`;
-  }
-  return `${value} XOF`;
 }

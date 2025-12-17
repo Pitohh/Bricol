@@ -1,13 +1,8 @@
-/** @type {import('tailwindcss').Config} */
 export default {
-  content: [
-    "./index.html",
-    "./src/**/*.{js,ts,jsx,tsx}",
-  ],
+  content: ['./index.html', './src/**/*.{js,jsx}'],
   theme: {
     extend: {
       colors: {
-        // Charte graphique Bricol
         'bricol-blue': '#1C4488',
         'bricol-green': '#5EC439',
         'bricol-orange': '#FF9800',
@@ -16,10 +11,10 @@ export default {
         'bricol-gray-dark': '#666666',
       },
       fontFamily: {
-        'montserrat': ['Montserrat', 'sans-serif'],
-        'inter': ['Inter', 'sans-serif'],
+        montserrat: ['Montserrat', 'sans-serif'],
+        inter: ['Inter', 'sans-serif'],
       },
     },
   },
   plugins: [],
-}
+};
