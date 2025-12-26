@@ -1,4 +1,6 @@
-const API_URL = 'http://localhost:3001';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+console.log('🔗 API URL:', API_URL);
+
 const getToken = () => localStorage.getItem('bricol_token');
 
 export const api = {
@@ -23,6 +25,7 @@ export const api = {
   get(endpoint) { return this.request(endpoint); },
   post(endpoint, data) { return this.request(endpoint, { method: 'POST', body: JSON.stringify(data) }); },
   put(endpoint, data) { return this.request(endpoint, { method: 'PUT', body: JSON.stringify(data) }); },
+  delete(endpoint) { return this.request(endpoint, { method: 'DELETE' }); },
 };
 
 export const authApi = {
@@ -46,6 +49,8 @@ export const subTasksApi = {
   getByPhase: (phaseId) => api.get(`/api/subtasks/phase/${phaseId}`),
   create: (data) => api.post('/api/subtasks', data),
   updateProgression: (id, progression) => api.put(`/api/subtasks/${id}/progression`, { progression }),
+  validate: (id) => api.post(`/api/subtasks/${id}/validate`),
+  delete: (id) => api.delete(`/api/subtasks/${id}`),
 };
 
 export const photosApi = {
