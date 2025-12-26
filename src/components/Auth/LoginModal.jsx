@@ -47,6 +47,7 @@ export function LoginModal() {
               onChange={(e) => setUsername(e.target.value)}
               className="input"
               required
+              autoComplete="username"
               disabled={isLoading}
             />
           </div>
@@ -62,6 +63,7 @@ export function LoginModal() {
               onChange={(e) => setPassword(e.target.value)}
               className="input"
               required
+              autoComplete="current-password"
               disabled={isLoading}
             />
           </div>
@@ -90,22 +92,6 @@ export function LoginModal() {
             )}
           </button>
         </form>
-
-        <div className="mt-6 pt-6 border-t border-gray-200">
-          <p className="text-xs text-gray-600 text-center mb-3 font-medium">
-            Comptes de test :
-          </p>
-          <div className="space-y-2 text-xs text-gray-600">
-            <div className="flex items-center justify-between bg-gray-50 px-3 py-2 rounded">
-              <span>👔 Chef de Projet</span>
-              <code className="bg-white px-2 py-1 rounded text-xs">michael / chantier2025</code>
-            </div>
-            <div className="flex items-center justify-between bg-gray-50 px-3 py-2 rounded">
-              <span>📋 Coordinateur</span>
-              <code className="bg-white px-2 py-1 rounded text-xs">tanguy / coordinateur123</code>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );

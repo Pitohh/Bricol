@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 
 import authRoutes from './routes/auth.js';
 import projectRoutes from './routes/project.js';
+import projectResetRoutes from './routes/project-reset.js';
 import phasesRoutes from './routes/phases.js';
 import subTasksRoutes from './routes/subTasks.js';
 import photosRoutes from './routes/photos.js';
@@ -17,7 +18,6 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 const isProduction = process.env.NODE_ENV === 'production';
 
-// CORS
 app.use(cors({
   origin: isProduction
     ? [
@@ -33,7 +33,6 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use('/uploads', express.static('server/uploads'));
 
-// Health
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
@@ -47,6 +46,7 @@ app.get('/api/health', (req, res) => {
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/project', projectRoutes);
+app.use('/api/project', projectResetRoutes);
 app.use('/api/phases', phasesRoutes);
 app.use('/api/subtasks', subTasksRoutes);
 app.use('/api/photos', photosRoutes);
@@ -54,13 +54,11 @@ app.use('/api/reports', reportsRoutes);
 app.use('/api/reactions', reactionsRoutes);
 app.use('/api/notifications', notificationsRoutes);
 
-// Error
 app.use((err, req, res, next) => {
   console.error('❌ Error:', err);
   res.status(500).json({ error: err.message });
 });
 
-// Start
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`
 ╔════════════════════════════════════════════════╗

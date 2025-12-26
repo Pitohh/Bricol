@@ -1,61 +1,85 @@
-import { useTasks } from '../../contexts/TaskContext';
+import { useEffect, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { StatusBadge, ProgressBar, LoadingSpinner } from '../UI';
-import { PhaseDetail } from './PhaseDetail';
+import { useTasks } from '../../contexts/TaskContext';
+import { PhaseCard } from './PhaseCard';
+import { ResetProject } from './ResetProject';
 
 export function Dashboard() {
-  const { tasks, isLoading, validateTechnically } = useTasks();
   const { user } = useAuth();
+  const { phases, loading, fetchPhases } = useTasks();
+  const [stats, setStats] = useState({
+    total: 0,
+    completed: 0,
+    inProgress: 0,
+    pending: 0
+  });
 
-  if (isLoading) return <LoadingSpinner message="Chargement..." />;
+  useEffect(() => {
+    fetchPhases();
+  }, []);
 
-  const total = tasks.reduce((sum, t) => sum + t.progression, 0) / tasks.length || 0;
+  useEffect(() => {
+    if (phases.length > 0) {
+      setStats({
+        total: phases.length,
+        completed: phases.filter(p => p.status === 'termine').length,
+        inProgress: phases.filter(p => p.status === 'en_cours').length,
+        pending: phases.filter(p => p.status === 'a_faire' || p.status === 'en_attente_boss').length
+      });
+    }
+  }, [phases]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-bricol-blue mx-auto mb-4"></div>
+          <p className="text-gray-600">Chargement...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="container mx-auto px-4 py-6">
-      <h2 className="text-2xl font-bold mb-6">Tableau de bord</h2>
-      
-      <div className="card mb-6">
-        <div className="flex items-center justify-between mb-2">
-          <span>Progression globale</span>
-          <span className="text-2xl font-bold text-bricol-blue">{Math.round(total)}%</span>
-        </div>
-        <ProgressBar value={total} />
+    <div className="space-y-6">
+      {/* En-tête */}
+      <div className="bg-white rounded-lg shadow-sm p-6">
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">
+          Tableau de bord
+        </h1>
+        <p className="text-gray-600">
+          Bienvenue, <span className="font-semibold">{user?.name}</span> - {user?.role_label}
+        </p>
       </div>
 
+      {/* Bouton Reset (seulement Michael) */}
+      <ResetProject />
+
+      {/* Statistiques */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="bg-white rounded-lg shadow-sm p-4">
+          <div className="text-sm text-gray-600 mb-1">Total Phases</div>
+          <div className="text-3xl font-bold text-gray-900">{stats.total}</div>
+        </div>
+        <div className="bg-white rounded-lg shadow-sm p-4">
+          <div className="text-sm text-gray-600 mb-1">Terminées</div>
+          <div className="text-3xl font-bold text-green-600">{stats.completed}</div>
+        </div>
+        <div className="bg-white rounded-lg shadow-sm p-4">
+          <div className="text-sm text-gray-600 mb-1">En cours</div>
+          <div className="text-3xl font-bold text-orange-600">{stats.inProgress}</div>
+        </div>
+        <div className="bg-white rounded-lg shadow-sm p-4">
+          <div className="text-sm text-gray-600 mb-1">En attente</div>
+          <div className="text-3xl font-bold text-gray-600">{stats.pending}</div>
+        </div>
+      </div>
+
+      {/* Liste des phases */}
       <div className="space-y-4">
-        {tasks.map(task => (
-          <div key={task.id} className="card">
-            <div className="flex items-start justify-between mb-3">
-              <div>
-                <h3 className="font-semibold text-lg">{task.phase_name}</h3>
-                <p className="text-sm text-gray-600">{task.description}</p>
-              </div>
-              <StatusBadge status={task.status} />
-            </div>
-            
-            <div className="mb-3">
-              <div className="flex justify-between text-sm mb-1">
-                <span>Progression</span>
-                <span className="font-medium">{task.progression}%</span>
-              </div>
-              <ProgressBar value={task.progression} />
-            </div>
-
-            {user?.permissions?.canValidateTechnically && 
-              task.progression >= 80 && 
-              task.progression < 85 && (
-                <button 
-                  onClick={() => validateTechnically(task.id)} 
-                  className="btn-primary text-sm mb-3"
-                >
-                  Valider 85%
-                </button>
-              )}
-
-            {/* Sous-tâches */}
-            <PhaseDetail phase={task} />
-          </div>
+        <h2 className="text-xl font-bold text-gray-900">Phases du projet</h2>
+        {phases.map(phase => (
+          <PhaseCard key={phase.id} phase={phase} />
         ))}
       </div>
     </div>
