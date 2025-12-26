@@ -1,41 +1,81 @@
+import { useEffect } from 'react';
 import { useTasks } from '../../contexts/TaskContext';
 import { useAuth } from '../../contexts/AuthContext';
-import { StatusBadge, LoadingSpinner } from '../UI';
+import { phasesApi } from '../../utils/api';
 
 export function Validations() {
-  const { tasks, isLoading, approveFinal } = useTasks();
   const { user } = useAuth();
-  const pending = tasks.filter(t => t.status === 'en_attente_boss');
+  const { phases = [], loading, fetchPhases } = useTasks();
 
-  if (isLoading) return <LoadingSpinner message="Chargement..." />;
+  useEffect(() => {
+    fetchPhases();
+  }, []);
+
+  const pendingPhases = Array.isArray(phases) 
+    ? phases.filter(p => p.status === 'en_attente_boss')
+    : [];
+
+  const handleApprove = async (phaseId) => {
+    if (!confirm('Approuver cette phase à 100% ?')) return;
+    
+    try {
+      await phasesApi.approve(phaseId);
+      alert('✅ Phase approuvée !');
+      fetchPhases();
+    } catch (error) {
+      alert('❌ Erreur : ' + error.message);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-bricol-blue"></div>
+      </div>
+    );
+  }
 
   return (
-    <div className="container mx-auto px-4 py-6">
-      <h2 className="text-2xl font-bold mb-6">✅ Validations ({pending.length})</h2>
-      
-      {!user?.permissions?.canApproveFinal && (
-        <div className="card border-l-4 border-yellow-500 mb-4">
-          <p className="text-yellow-700">⚠️ Seul le Chef peut approuver les validations finales.</p>
-        </div>
-      )}
+    <div className="space-y-6">
+      <div className="bg-white rounded-lg shadow-sm p-6">
+        <h2 className="text-2xl font-bold mb-2">Validations en attente</h2>
+        <p className="text-gray-600">
+          Phases validées techniquement par le coordinateur, en attente d'approbation finale
+        </p>
+      </div>
 
-      {pending.length === 0 ? (
-        <div className="card text-center py-8 text-gray-500">Aucune validation en attente</div>
+      {pendingPhases.length === 0 ? (
+        <div className="bg-white rounded-lg shadow-sm p-8 text-center">
+          <p className="text-gray-600">✅ Aucune validation en attente</p>
+        </div>
       ) : (
         <div className="space-y-4">
-          {pending.map(task => (
-            <div key={task.id} className="card">
-              <div className="flex items-start justify-between">
+          {pendingPhases.map(phase => (
+            <div key={phase.id} className="bg-white rounded-lg shadow-sm p-6 border-l-4 border-yellow-500">
+              <div className="flex items-center justify-between">
                 <div className="flex-1">
-                  <h3 className="font-semibold">{task.phase_name}</h3>
-                  <p className="text-sm text-gray-600 mt-1">{task.description}</p>
-                  <div className="mt-2">
-                    <StatusBadge status={task.status} />
-                    <span className="ml-3 text-sm text-gray-600">Progression: {task.progression}%</span>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                    {phase.phase_name}
+                  </h3>
+                  <p className="text-sm text-gray-600 mb-3">{phase.description}</p>
+                  
+                  <div className="flex items-center space-x-4 text-sm">
+                    <span className="text-gray-600">
+                      Progression : <span className="font-semibold">85%</span>
+                    </span>
+                    <span className="text-gray-600">
+                      Budget : <span className="font-semibold">
+                        {(phase.estimated_cost || 0).toLocaleString('fr-FR')} XOF
+                      </span>
+                    </span>
                   </div>
                 </div>
+
                 {user?.permissions?.canApproveFinal && (
-                  <button onClick={() => approveFinal(task.id)} className="btn-primary">
+                  <button
+                    onClick={() => handleApprove(phase.id)}
+                    className="ml-4 px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold transition-colors"
+                  >
                     Approuver 15% finaux
                   </button>
                 )}
