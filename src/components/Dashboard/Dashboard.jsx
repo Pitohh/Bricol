@@ -73,9 +73,6 @@ export function Dashboard() {
       {/* Planning Gantt global */}
       <GanttChart />
 
-      {/* Bouton Reset (seulement Michael) */}
-      <ResetProject />
-
       {/* Statistiques */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-white rounded-lg shadow-sm p-4">
@@ -95,6 +92,9 @@ export function Dashboard() {
           <div className="text-3xl font-bold text-gray-600">{stats.pending}</div>
         </div>
       </div>
+
+      {/* Bouton Reset - JUSTE AVANT LA LISTE DES PHASES */}
+      <ResetProject />
 
       {/* Liste des phases */}
       <div className="space-y-4">
