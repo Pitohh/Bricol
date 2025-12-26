@@ -1,4 +1,10 @@
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+// Détection automatique de l'environnement
+const isProduction = window.location.hostname !== 'localhost';
+
+const API_URL = isProduction 
+  ? 'https://cultural-alikee-open-road-00c3b62c.koyeb.app'
+  : 'http://localhost:3001';
+
 console.log('🔗 API URL:', API_URL);
 
 const getToken = () => localStorage.getItem('bricol_token');
