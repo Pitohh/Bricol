@@ -1,35 +1,43 @@
 import express from 'express';
-import db from '../config/database.js';
+import pool from '../config/database-pg.js';
 
 const router = express.Router();
 
-// Get project info
-router.get('/', (req, res) => {
+// Get project
+router.get('/', async (req, res) => {
   try {
-    const project = db.prepare('SELECT * FROM project WHERE id = 1').get();
-    if (!project) {
-      // Si pas de projet, en créer un par défaut
-      db.prepare('INSERT INTO project (name, total_budget, start_date, created_by) VALUES (?, ?, ?, ?)')
-        .run('Rénovation Orphelinat', 10000000, '2024-11-25', 1);
-      const newProject = db.prepare('SELECT * FROM project WHERE id = 1').get();
-      return res.json(newProject);
+    const result = await pool.query('SELECT * FROM project WHERE id = 1');
+    
+    if (result.rows.length === 0) {
+      // Créer projet par défaut
+      const newProject = await pool.query(
+        `INSERT INTO project (name, total_budget, start_date, created_by)
+         VALUES ($1, $2, $3, $4) RETURNING *`,
+        ['Rénovation Orphelinat', 10000000, '2024-11-25', 1]
+      );
+      return res.json(newProject.rows[0]);
     }
-    res.json(project);
+
+    res.json(result.rows[0]);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// Update project budget
-router.put('/budget', (req, res) => {
+// Update budget
+router.put('/budget', async (req, res) => {
   const { total_budget } = req.body;
 
   try {
-    db.prepare('UPDATE project SET total_budget = ?, updated_at = CURRENT_TIMESTAMP WHERE id = 1')
-      .run(total_budget);
+    const result = await pool.query(
+      `UPDATE project 
+       SET total_budget = $1, updated_at = CURRENT_TIMESTAMP 
+       WHERE id = 1 
+       RETURNING *`,
+      [total_budget]
+    );
 
-    const project = db.prepare('SELECT * FROM project WHERE id = 1').get();
-    res.json(project);
+    res.json(result.rows[0]);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

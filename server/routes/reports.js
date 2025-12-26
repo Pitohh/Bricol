@@ -1,37 +1,35 @@
 import express from 'express';
-import db from '../config/database.js';
-import { authenticateToken, checkPermission } from '../middleware/auth.js';
+import pool from '../config/database-pg.js';
 
 const router = express.Router();
 
-// Create report (Coordinateur)
-router.post('/', authenticateToken, checkPermission('canWriteReports'), (req, res) => {
+// Create report
+router.post('/', async (req, res) => {
   const { sub_task_id, report_text } = req.body;
 
   try {
-    const result = db.prepare(`
-      INSERT INTO reports (sub_task_id, report_text, created_by)
-      VALUES (?, ?, ?)
-    `).run(sub_task_id, report_text, req.user.id);
-
-    const report = db.prepare('SELECT * FROM reports WHERE id = ?').get(result.lastInsertRowid);
-
-    const io = req.app.get('io');
-    io.emit('report-created', report);
-
-    res.json(report);
+    const result = await pool.query(
+      `INSERT INTO reports (sub_task_id, report_text, created_by)
+       VALUES ($1, $2, 1)
+       RETURNING *`,
+      [sub_task_id, report_text]
+    );
+    res.json(result.rows[0]);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// Get reports for subtask
-router.get('/subtask/:subTaskId', authenticateToken, (req, res) => {
+// Get reports
+router.get('/subtask/:subTaskId', async (req, res) => {
   const { subTaskId } = req.params;
 
   try {
-    const reports = db.prepare('SELECT * FROM reports WHERE sub_task_id = ? ORDER BY created_at DESC').all(subTaskId);
-    res.json(reports);
+    const result = await pool.query(
+      'SELECT * FROM reports WHERE sub_task_id = $1 ORDER BY created_at DESC',
+      [subTaskId]
+    );
+    res.json(result.rows);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

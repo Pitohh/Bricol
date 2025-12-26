@@ -1,68 +1,70 @@
 import express from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import db from '../config/database.js';
+import pool from '../config/database-pg.js';
 
 const router = express.Router();
 
-router.post('/login', (req, res) => {
+// Login
+router.post('/login', async (req, res) => {
   const { username, password } = req.body;
   console.log('🔐 Login attempt:', username);
 
   try {
-    const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username);
+    const result = await pool.query(
+      'SELECT * FROM users WHERE username = $1',
+      [username]
+    );
 
-    if (!user) {
-      console.log('❌ User not found:', username);
-      return res.status(401).json({ error: 'Utilisateur introuvable' });
+    if (result.rows.length === 0) {
+      return res.status(401).json({ error: 'Identifiants invalides' });
     }
 
-    const validPassword = bcrypt.compareSync(password, user.password);
+    const user = result.rows[0];
+    const validPassword = await bcrypt.compare(password, user.password);
 
     if (!validPassword) {
-      console.log('❌ Wrong password for:', username);
-      return res.status(401).json({ error: 'Mot de passe incorrect' });
+      return res.status(401).json({ error: 'Identifiants invalides' });
     }
 
     const token = jwt.sign(
       { id: user.id, username: user.username },
-      process.env.JWT_SECRET || 'bricol_secret_2025',
+      process.env.JWT_SECRET,
       { expiresIn: '24h' }
     );
 
-    const { password: _, ...userWithoutPassword } = user;
-    userWithoutPassword.permissions = JSON.parse(userWithoutPassword.permissions);
-
+    delete user.password;
     console.log('✅ Login successful:', username);
-    res.json({ token, user: userWithoutPassword });
+
+    res.json({ token, user });
   } catch (error) {
-    console.error('💥 Login error:', error);
+    console.error('❌ Login error:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-router.get('/me', (req, res) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-
+// Get current user
+router.get('/me', async (req, res) => {
+  const token = req.headers.authorization?.split(' ')[1];
+  
   if (!token) {
     return res.status(401).json({ error: 'Non authentifié' });
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'bricol_secret_2025');
-    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(decoded.id);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const result = await pool.query(
+      'SELECT id, username, name, role, role_label, specialty, permissions, color FROM users WHERE id = $1',
+      [decoded.id]
+    );
 
-    if (!user) {
+    if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Utilisateur non trouvé' });
     }
 
-    const { password: _, ...userWithoutPassword } = user;
-    userWithoutPassword.permissions = JSON.parse(userWithoutPassword.permissions);
-
-    res.json(userWithoutPassword);
+    res.json(result.rows[0]);
   } catch (error) {
-    res.status(403).json({ error: 'Token invalide' });
+    res.status(401).json({ error: 'Token invalide' });
   }
 });
 
