@@ -1,117 +1,140 @@
-import { useState } from 'react';
-import { useTasks } from '../../contexts/TaskContext';
+import { useEffect, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { phasesApi } from '../../utils/api';
-import { DollarSign, Save } from 'lucide-react';
+import { useTasks } from '../../contexts/TaskContext';
+import { projectApi, phasesApi } from '../../utils/api';
 
 export function CostsView() {
-  const { tasks, refreshTasks } = useTasks();
   const { user } = useAuth();
-  const [actualCosts, setActualCosts] = useState({});
-  const [isSaving, setIsSaving] = useState(false);
+  const { phases = [], fetchPhases } = useTasks();
+  const [project, setProject] = useState(null);
 
-  const formatCurrency = (value) => `${(value / 1000000).toFixed(2)}M XOF`;
+  useEffect(() => {
+    loadProject();
+    fetchPhases();
+  }, []);
 
-  const totalEstimated = tasks.reduce((sum, t) => sum + (t.estimated_cost || 0), 0);
-  const totalActual = tasks.reduce((sum, t) => sum + (t.actual_cost || 0), 0);
-  const totalRemaining = totalEstimated - totalActual;
-
-  const handleUpdateActualCost = async (phaseId, cost) => {
-    setIsSaving(true);
+  const loadProject = async () => {
     try {
-      await phasesApi.updateActualCost(phaseId, cost);
-      await refreshTasks();
-      alert('✅ Coût réel mis à jour !');
+      const data = await projectApi.get();
+      setProject(data);
     } catch (error) {
-      alert('❌ Erreur : ' + error.message);
-    } finally {
-      setIsSaving(false);
+      console.error('Error loading project:', error);
     }
   };
 
-  return (
-    <div className="container mx-auto px-4 py-6">
-      <h2 className="text-2xl font-bold mb-6">💵 Suivi des Coûts</h2>
+  const handleActualCostUpdate = async (phaseId, actualCost) => {
+    try {
+      await phasesApi.updateActualCost(phaseId, actualCost);
+      fetchPhases();
+      alert('✅ Coût réel mis à jour !');
+    } catch (error) {
+      alert('❌ Erreur : ' + error.message);
+    }
+  };
 
-      {/* Cartes récapitulatives */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div className="card border-l-4 border-blue-500">
-          <p className="text-sm text-gray-600 mb-1">Budget Total</p>
-          <p className="text-2xl font-bold text-blue-600">{formatCurrency(totalEstimated)}</p>
+  const totalBudget = project?.total_budget || 10000000;
+  const totalSpent = phases.reduce((sum, p) => sum + parseInt(p.actual_cost || 0), 0);
+  const totalEstimated = phases.reduce((sum, p) => sum + parseInt(p.estimated_cost || 0), 0);
+  const remaining = totalBudget - totalSpent;
+
+  return (
+    <div className="space-y-6">
+      <div className="bg-white rounded-lg shadow-sm p-6">
+        <h2 className="text-2xl font-bold mb-2">Suivi des coûts</h2>
+        <p className="text-gray-600">Vue d'ensemble des dépenses réelles vs budget prévu</p>
+      </div>
+
+      {/* Résumé */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="bg-white rounded-lg shadow-sm p-6">
+          <div className="text-sm text-gray-600 mb-1">Budget Total</div>
+          <div className="text-2xl font-bold text-blue-600">
+            {totalBudget.toLocaleString('fr-FR')} XOF
+          </div>
         </div>
-        <div className="card border-l-4 border-orange-500">
-          <p className="text-sm text-gray-600 mb-1">Dépensé</p>
-          <p className="text-2xl font-bold text-orange-600">{formatCurrency(totalActual)}</p>
-          <p className="text-xs text-gray-500 mt-1">
-            {((totalActual / totalEstimated) * 100).toFixed(1)}% du budget
-          </p>
+        <div className="bg-white rounded-lg shadow-sm p-6">
+          <div className="text-sm text-gray-600 mb-1">Dépensé</div>
+          <div className="text-2xl font-bold text-orange-600">
+            {totalSpent.toLocaleString('fr-FR')} XOF
+          </div>
+          <div className="text-xs text-gray-500 mt-1">
+            {((totalSpent / totalBudget) * 100).toFixed(1)}% du budget
+          </div>
         </div>
-        <div className="card border-l-4 border-green-500">
-          <p className="text-sm text-gray-600 mb-1">Restant</p>
-          <p className="text-2xl font-bold text-green-600">{formatCurrency(totalRemaining)}</p>
-          <p className="text-xs text-gray-500 mt-1">
-            {((totalRemaining / totalEstimated) * 100).toFixed(1)}% disponible
-          </p>
+        <div className={`rounded-lg shadow-sm p-6 ${remaining >= 0 ? 'bg-white' : 'bg-red-50'}`}>
+          <div className="text-sm text-gray-600 mb-1">Restant</div>
+          <div className={`text-2xl font-bold ${remaining >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+            {remaining.toLocaleString('fr-FR')} XOF
+          </div>
+          {remaining < 0 && (
+            <div className="text-xs text-red-600 mt-1 font-semibold">⚠️ Dépassement</div>
+          )}
         </div>
       </div>
 
-      {/* Tableau détaillé */}
-      <div className="card">
-        <h3 className="text-lg font-bold mb-4">Détail par Phase</h3>
+      {/* Détails par phase */}
+      <div className="bg-white rounded-lg shadow-sm p-6">
+        <h3 className="text-lg font-semibold mb-4">Détails par phase</h3>
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Phase</th>
-                <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">Budget Prévu</th>
-                <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">Coût Réel</th>
-                <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">Écart</th>
-                <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700">Actions</th>
+            <thead>
+              <tr className="border-b border-gray-200">
+                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">Phase</th>
+                <th className="text-right py-3 px-4 text-sm font-semibold text-gray-900">Budget prévu</th>
+                <th className="text-right py-3 px-4 text-sm font-semibold text-gray-900">Coût réel</th>
+                <th className="text-right py-3 px-4 text-sm font-semibold text-gray-900">Écart</th>
+                <th className="text-center py-3 px-4 text-sm font-semibold text-gray-900">Statut</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200">
-              {tasks.map(task => {
-                const variance = (task.actual_cost || 0) - (task.estimated_cost || 0);
-                const isOverBudget = variance > 0;
+            <tbody>
+              {phases.map((phase) => {
+                const estimated = parseInt(phase.estimated_cost || 0);
+                const actual = parseInt(phase.actual_cost || 0);
+                const variance = estimated - actual;
+                const isOverBudget = variance < 0;
 
                 return (
-                  <tr key={task.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3">
-                      <p className="font-medium text-gray-900">{task.phase_name}</p>
-                      <p className="text-xs text-gray-500">{task.progression}% complété</p>
+                  <tr key={phase.id} className="border-b border-gray-100 hover:bg-gray-50">
+                    <td className="py-3 px-4">
+                      <div className="font-medium text-gray-900">{phase.phase_name}</div>
+                      <div className="text-xs text-gray-500">{phase.progression}% complété</div>
                     </td>
-                    <td className="px-4 py-3 text-right text-sm">
-                      {formatCurrency(task.estimated_cost || 0)}
+                    <td className="py-3 px-4 text-right text-gray-900">
+                      {estimated.toLocaleString('fr-FR')} XOF
                     </td>
-                    <td className="px-4 py-3 text-right">
+                    <td className="py-3 px-4 text-right">
                       {user?.permissions?.canEditBudget ? (
-                        <div className="flex items-center justify-end gap-2">
-                          <input
-                            type="number"
-                            defaultValue={task.actual_cost || 0}
-                            onChange={(e) => setActualCosts({ ...actualCosts, [task.id]: Number(e.target.value) })}
-                            className="input w-32 text-right text-sm"
-                            step="10000"
-                          />
-                          <button
-                            onClick={() => handleUpdateActualCost(task.id, actualCosts[task.id] || task.actual_cost || 0)}
-                            disabled={isSaving}
-                            className="btn-primary px-2 py-1 text-xs"
-                          >
-                            <Save className="w-3 h-3" />
-                          </button>
-                        </div>
+                        <input
+                          type="number"
+                          defaultValue={actual}
+                          onBlur={(e) => {
+                            const newValue = parseInt(e.target.value) || 0;
+                            if (newValue !== actual) {
+                              handleActualCostUpdate(phase.id, newValue);
+                            }
+                          }}
+                          className="input text-right w-40"
+                        />
                       ) : (
-                        <span className="text-sm">{formatCurrency(task.actual_cost || 0)}</span>
+                        <span className="text-gray-900">{actual.toLocaleString('fr-FR')} XOF</span>
                       )}
                     </td>
-                    <td className={`px-4 py-3 text-right text-sm font-semibold ${isOverBudget ? 'text-red-600' : 'text-green-600'}`}>
-                      {isOverBudget ? '+' : ''}{formatCurrency(variance)}
+                    <td className={`py-3 px-4 text-right font-semibold ${isOverBudget ? 'text-red-600' : 'text-green-600'}`}>
+                      {isOverBudget ? '⚠️ ' : '✓ '}
+                      {Math.abs(variance).toLocaleString('fr-FR')} XOF
                     </td>
-                    <td className="px-4 py-3 text-center">
-                      {isOverBudget && (
-                        <span className="inline-flex items-center px-2 py-1 bg-red-100 text-red-700 text-xs rounded-full">
-                          ⚠️ Dépassement
+                    <td className="py-3 px-4 text-center">
+                      {isOverBudget && actual > 0 ? (
+                        <span className="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs font-medium">
+                          Hors budget
+                        </span>
+                      ) : actual > 0 ? (
+                        <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium">
+                          Dans le budget
+                        </span>
+                      ) : (
+                        <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs">
+                          Pas de dépenses
                         </span>
                       )}
                     </td>
@@ -119,17 +142,6 @@ export function CostsView() {
                 );
               })}
             </tbody>
-            <tfoot className="bg-gray-50 font-bold">
-              <tr>
-                <td className="px-4 py-3">TOTAL</td>
-                <td className="px-4 py-3 text-right">{formatCurrency(totalEstimated)}</td>
-                <td className="px-4 py-3 text-right">{formatCurrency(totalActual)}</td>
-                <td className={`px-4 py-3 text-right ${(totalActual - totalEstimated) > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                  {(totalActual - totalEstimated) > 0 ? '+' : ''}{formatCurrency(totalActual - totalEstimated)}
-                </td>
-                <td></td>
-              </tr>
-            </tfoot>
           </table>
         </div>
       </div>

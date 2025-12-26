@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTasks } from '../../contexts/TaskContext';
+import { GanttChart } from '../GanttChart/GanttChart';
 import { PhaseCard } from './PhaseCard';
 import { ResetProject } from './ResetProject';
 
 export function Dashboard() {
   const { user } = useAuth();
-  const { phases = [], loading, error, fetchPhases } = useTasks(); // Valeur par défaut []
+  const { phases = [], loading, error, fetchPhases } = useTasks();
   const [stats, setStats] = useState({
     total: 0,
     completed: 0,
@@ -68,6 +69,9 @@ export function Dashboard() {
           Bienvenue, <span className="font-semibold">{user?.name}</span> - {user?.role_label}
         </p>
       </div>
+
+      {/* Planning Gantt global */}
+      <GanttChart />
 
       {/* Bouton Reset (seulement Michael) */}
       <ResetProject />
