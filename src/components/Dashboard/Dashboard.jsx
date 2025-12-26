@@ -6,7 +6,7 @@ import { ResetProject } from './ResetProject';
 
 export function Dashboard() {
   const { user } = useAuth();
-  const { phases, loading, fetchPhases } = useTasks();
+  const { phases = [], loading, error, fetchPhases } = useTasks(); // Valeur par défaut []
   const [stats, setStats] = useState({
     total: 0,
     completed: 0,
@@ -16,10 +16,10 @@ export function Dashboard() {
 
   useEffect(() => {
     fetchPhases();
-  }, []);
+  }, [fetchPhases]);
 
   useEffect(() => {
-    if (phases.length > 0) {
+    if (phases && phases.length > 0) {
       setStats({
         total: phases.length,
         completed: phases.filter(p => p.status === 'termine').length,
@@ -35,6 +35,23 @@ export function Dashboard() {
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-bricol-blue mx-auto mb-4"></div>
           <p className="text-gray-600">Chargement...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <div className="text-red-600 mb-4">❌ Erreur de chargement</div>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <button
+            onClick={fetchPhases}
+            className="px-4 py-2 bg-bricol-blue text-white rounded-lg hover:bg-blue-700"
+          >
+            Réessayer
+          </button>
         </div>
       </div>
     );
@@ -78,9 +95,22 @@ export function Dashboard() {
       {/* Liste des phases */}
       <div className="space-y-4">
         <h2 className="text-xl font-bold text-gray-900">Phases du projet</h2>
-        {phases.map(phase => (
-          <PhaseCard key={phase.id} phase={phase} />
-        ))}
+        
+        {!phases || phases.length === 0 ? (
+          <div className="bg-white rounded-lg shadow-sm p-8 text-center">
+            <p className="text-gray-600">Aucune phase trouvée</p>
+            <button
+              onClick={fetchPhases}
+              className="mt-4 px-4 py-2 bg-bricol-blue text-white rounded-lg hover:bg-blue-700"
+            >
+              Recharger
+            </button>
+          </div>
+        ) : (
+          phases.map(phase => (
+            <PhaseCard key={phase.id} phase={phase} />
+          ))
+        )}
       </div>
     </div>
   );

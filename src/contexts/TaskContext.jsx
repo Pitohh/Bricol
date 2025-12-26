@@ -1,43 +1,48 @@
-import { createContext, useState, useContext, useEffect } from 'react';
+import { createContext, useContext, useState, useCallback } from 'react';
 import { phasesApi } from '../utils/api';
 
-const TaskContext = createContext(null);
+const TaskContext = createContext();
 
 export function TaskProvider({ children }) {
-  const [tasks, setTasks] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [phases, setPhases] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  const loadTasks = async () => {
+  const fetchPhases = useCallback(async () => {
+    setLoading(true);
+    setError(null);
     try {
-      const phases = await phasesApi.getAll();
-      setTasks(phases);
-    } catch (error) {
-      console.error('Error:', error);
-      setTasks([]);
+      const data = await phasesApi.getAll();
+      console.log('✅ Phases loaded:', data);
+      setPhases(data || []); // S'assurer que c'est toujours un tableau
+    } catch (err) {
+      console.error('❌ Error loading phases:', err);
+      setError(err.message);
+      setPhases([]); // Fallback tableau vide
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
-  };
-
-  useEffect(() => {
-    loadTasks();
   }, []);
 
-  const validateTechnically = async (taskId) => {
-    await phasesApi.validate(taskId);
-    await loadTasks();
-  };
-
-  const approveFinal = async (taskId) => {
-    await phasesApi.approve(taskId);
-    await loadTasks();
+  const value = {
+    phases,
+    loading,
+    error,
+    fetchPhases,
+    setPhases
   };
 
   return (
-    <TaskContext.Provider value={{ tasks, isLoading, validateTechnically, approveFinal, refreshTasks: loadTasks }}>
+    <TaskContext.Provider value={value}>
       {children}
     </TaskContext.Provider>
   );
 }
 
-export const useTasks = () => useContext(TaskContext);
+export function useTasks() {
+  const context = useContext(TaskContext);
+  if (!context) {
+    throw new Error('useTasks must be used within a TaskProvider');
+  }
+  return context;
+}
